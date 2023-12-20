@@ -37,10 +37,35 @@
 #include "cborinternal_p.h"
 
 #include <inttypes.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define fprintf memfprintf
+#define fputc memfputc
+
+#include <stdio.h>
+#include <stdarg.h>
+
+static int memfprintf(MEMFILE *stream, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    int retv = vsnprintf(&stream->buffer[stream->pos], stream->buffer_len - stream->pos, format, args);
+    va_end(args);
+    if (retv >= 0) {
+        stream->pos += retv;
+    }
+    return retv;
+}
+
+static int memfputc(int c, MEMFILE *stream)
+{
+    if (stream->pos >= stream->buffer_len) {
+        return EOF;
+    }
+    stream->buffer[stream->pos++] = c;
+    return c;
+}
 /**
  * \defgroup CborToJson Converting CBOR to JSON
  * \brief Group of functions used to convert CBOR to JSON.
@@ -166,7 +191,7 @@ typedef struct ConversionStatus {
     int flags;
 } ConversionStatus;
 
-static CborError value_to_json(FILE *out, CborValue *it, int flags, CborType type, ConversionStatus *status);
+static CborError value_to_json(MEMFILE *out, CborValue *it, int flags, CborType type, ConversionStatus *status);
 
 static CborError dump_bytestring_base16(char **result, CborValue *it)
 {
@@ -291,7 +316,7 @@ static CborError dump_bytestring_base64url(char **result, CborValue *it)
     return generic_dump_base64(result, it, alphabet);
 }
 
-static CborError add_value_metadata(FILE *out, CborType type, const ConversionStatus *status)
+static CborError add_value_metadata(MEMFILE *out, CborType type, const ConversionStatus *status)
 {
     int flags = status->flags;
     if (flags & TypeWasTagged) {
@@ -342,7 +367,7 @@ static CborError find_tagged_type(CborValue *it, CborTag *tag, CborType *type)
     return err;
 }
 
-static CborError tagged_value_to_json(FILE *out, CborValue *it, int flags, ConversionStatus *status)
+static CborError tagged_value_to_json(MEMFILE *out, CborValue *it, int flags, ConversionStatus *status)
 {
     CborTag tag;
     CborError err;
@@ -428,7 +453,7 @@ static CborError stringify_map_key(char **key, CborValue *it, int flags, CborTyp
 #endif
 }
 
-static CborError array_to_json(FILE *out, CborValue *it, int flags, ConversionStatus *status)
+static CborError array_to_json(MEMFILE *out, CborValue *it, int flags, ConversionStatus *status)
 {
     const char *comma = "";
     while (!cbor_value_at_end(it)) {
@@ -443,7 +468,7 @@ static CborError array_to_json(FILE *out, CborValue *it, int flags, ConversionSt
     return CborNoError;
 }
 
-static CborError map_to_json(FILE *out, CborValue *it, int flags, ConversionStatus *status)
+static CborError map_to_json(MEMFILE *out, CborValue *it, int flags, ConversionStatus *status)
 {
     const char *comma = "";
     CborError err;
@@ -496,7 +521,7 @@ static CborError map_to_json(FILE *out, CborValue *it, int flags, ConversionStat
     return CborNoError;
 }
 
-static CborError value_to_json(FILE *out, CborValue *it, int flags, CborType type, ConversionStatus *status)
+static CborError value_to_json(MEMFILE *out, CborValue *it, int flags, CborType type, ConversionStatus *status)
 {
     CborError err;
     status->flags = 0;
@@ -680,7 +705,7 @@ static CborError value_to_json(FILE *out, CborValue *it, int flags, CborType typ
  */
 
 /**
- * \fn CborError cbor_value_to_json(FILE *out, const CborValue *value, int flags)
+ * \fn CborError cbor_value_to_json(MEMFILE *out, const CborValue *value, int flags)
  *
  * Converts the current CBOR type pointed to by \a value to JSON and writes that
  * to the \a out stream. If an error occurs, this function returns an error
@@ -700,7 +725,7 @@ static CborError value_to_json(FILE *out, CborValue *it, int flags, CborType typ
  *
  * \sa cbor_value_to_json(), cbor_value_to_pretty_advance()
  */
-CborError cbor_value_to_json_advance(FILE *out, CborValue *value, int flags)
+CborError cbor_value_to_json_advance(MEMFILE *out, CborValue *value, int flags)
 {
     ConversionStatus status;
     return value_to_json(out, value, flags, cbor_value_get_type(value), &status);

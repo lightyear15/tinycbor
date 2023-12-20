@@ -47,8 +47,16 @@ enum CborToJsonFlags
     CborConvertDefaultFlags = 0
 };
 
-CBOR_API CborError cbor_value_to_json_advance(FILE *out, CborValue *value, int flags);
-CBOR_INLINE_API CborError cbor_value_to_json(FILE *out, const CborValue *value, int flags)
+typedef struct {
+    char *const buffer;
+    const size_t buffer_len;
+    size_t pos;
+} MEMFILE;
+
+#define MEMFILE_INIT(buf, buf_len) { .buffer = (buf), .buffer_len = (buf_len), .pos = 0 }
+
+CBOR_API CborError cbor_value_to_json_advance(MEMFILE *out, CborValue *value, int flags);
+CBOR_INLINE_API CborError cbor_value_to_json(MEMFILE *out, const CborValue *value, int flags)
 {
     CborValue copy = *value;
     return cbor_value_to_json_advance(out, &copy, flags);
