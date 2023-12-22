@@ -56,11 +56,7 @@ typedef struct {
 #define MEMFILE_INIT(buf, buf_len) { .buffer = (buf), .buffer_len = (buf_len), .pos = 0 }
 
 CBOR_API CborError cbor_value_to_json_advance(MEMFILE *out, CborValue *value, int flags);
-CBOR_INLINE_API CborError cbor_value_to_json(MEMFILE *out, const CborValue *value, int flags)
-{
-    CborValue copy = *value;
-    return cbor_value_to_json_advance(out, &copy, flags);
-}
+CBOR_API CborError cbor_value_to_json(MEMFILE *out, const CborValue *value, int flags);
 
 #ifdef __cplusplus
 }

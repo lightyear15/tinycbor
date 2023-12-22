@@ -731,4 +731,17 @@ CborError cbor_value_to_json_advance(MEMFILE *out, CborValue *value, int flags)
     return value_to_json(out, value, flags, cbor_value_get_type(value), &status);
 }
 
+CborError cbor_value_to_json(MEMFILE *out, const CborValue *value, int flags)
+{
+    CborValue copy = *value;
+    int retv = cbor_value_to_json_advance(out, &copy, flags);
+    if (retv) {
+        return retv;
+    }
+    if(fputc('\0', out) < 0) {
+        return CborErrorIO;
+    }
+    return retv;
+}
+
 /** @} */
